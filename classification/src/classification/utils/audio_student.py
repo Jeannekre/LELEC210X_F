@@ -7,6 +7,7 @@ import sounddevice as sd
 import soundfile as sf
 from matplotlib import patches
 from numpy import ndarray
+from scipy import signal
 from scipy.signal import fftconvolve
 
 # -----------------------------------------------------------------------------
@@ -65,6 +66,10 @@ class AudioUtil:
         sig, sr = audio
 
         ### TO COMPLETE
+        if sr == newsr:
+            return (sig, sr)
+        num_samples = int(len(sig) * newsr / sr)
+        resig = signal.resample(sig, num_samples)
 
         return (resig, newsr)
 
@@ -109,8 +114,10 @@ class AudioUtil:
         sig, sr = audio
 
         ### TO COMPLETE
+        scale_factor = np.random.uniform(1 / scaling_limit, scaling_limit)
+        sig = sig * scale_factor
 
-        return audio
+        return (sig, sr)
 
     def add_noise(audio, sigma=0.05) -> tuple[ndarray, int]:
         """
@@ -122,8 +129,10 @@ class AudioUtil:
         sig, sr = audio
 
         ### TO COMPLETE
+        noise = np.random.normal(0, sigma, sig.shape)
+        sig = sig + noise
 
-        return audio
+        return (sig, sr)
 
     def echo(audio, nechos=2) -> tuple[ndarray, int]:
         """
@@ -153,11 +162,15 @@ class AudioUtil:
         sig, sr = audio
 
         ### TO COMPLETE
+        full_filt = np.concatenate((filt, filt[-2:0:-1]))
+        sig_fft = np.fft.fft(sig, n=len(full_filt))
+        filtered_fft = sig_fft * full_filt
+        sig = np.real(np.fft.ifft(filtered_fft))[: len(sig)]
 
         return (sig, sr)
 
     def add_bg(
-        self, dataset, num_sources=1, max_ms=5000, amplitude_limit=0.1
+        audio, dataset, num_sources=1, max_ms=5000, amplitude_limit=0.1
     ) -> tuple[ndarray, int]:
         """
         Adds up sounds uniformly chosen at random to audio.
@@ -171,8 +184,25 @@ class AudioUtil:
         sig, sr = audio
 
         ### TO COMPLETE
+        classes = dataset.list_classes()
+        for _ in range(num_sources):
+            cls = random.choice(classes)
+            idx = random.randint(0, dataset.naudio[cls] - 1)
+            bg_aud = AudioUtil.open(dataset[cls, idx])
+            bg_aud = AudioUtil.resample(bg_aud, sr)
+            bg_aud = AudioUtil.pad_trunc(bg_aud, max_ms)
 
-        return audio
+            bg_sig = bg_aud[0]
+            # Aligner la taille si nécessaire
+            if len(bg_sig) < len(sig):
+                bg_sig = np.pad(bg_sig, (0, len(sig) - len(bg_sig)))
+            else:
+                bg_sig = bg_sig[: len(sig)]
+
+            amp = np.random.uniform(0, amplitude_limit)
+            sig = sig + amp * bg_sig
+
+        return (sig, sr)
 
     def specgram(audio, Nft=512, fs2=11025) -> ndarray:
         """
@@ -184,6 +214,14 @@ class AudioUtil:
         """
         ### TO COMPLETE
         # stft /= float(2**8)
+        sig, _ = audio
+        L = len(sig)
+        sig = sig[: L - L % Nft]
+        audiomat = np.reshape(sig, (len(sig) // Nft, Nft))
+        audioham = audiomat * np.hamming(Nft)
+
+        stft = np.fft.fft(audioham, axis=1)
+        stft = np.abs(stft[:, : Nft // 2].T)
         return stft
 
     def get_hz2mel(fs2=11025, Nft=512, Nmel=20) -> ndarray:
@@ -210,6 +248,9 @@ class AudioUtil:
         :param fs2: The sampling frequency.
         """
         ### TO COMPLETE
+        stft = AudioUtil.specgram(audio, Nft=Nft, fs2=fs2)
+        mels = AudioUtil.get_hz2mel(fs2=fs2, Nft=Nft, Nmel=Nmel)
+        melspec = mels @ stft
 
         return melspec
 
@@ -293,7 +334,7 @@ class Feature_vector_DS:
         :param audio: audio to treat.
         """
         return AudioUtil.melspectrogram(audio, Nmel=self.nmel, Nft=self.Nft)
-        
+
     def __getitem__(self, cls_index: tuple[str, int]) -> tuple[ndarray, int]:
         """
         Get i'th item in dataset.
@@ -301,7 +342,6 @@ class Feature_vector_DS:
         :param cls_index: Class name and index.
         """
         return self.get_feature_vector(self.get_audiosignal(cls_index))
-
 
     def display(self, cls_index: tuple[str, int], show_features=False):
         """
@@ -367,7 +407,6 @@ class Feature_vector_DS:
             )
 
         return self.treat_spec(sgram)
-        
 
     def get_feature_vectors(self) -> tuple[ndarray, ndarray]:
         """Returns all feature vectors and their labels."""
@@ -378,7 +417,7 @@ class Feature_vector_DS:
 
         for _class_idx, classname in enumerate(classnames):
             for idx in range(self.dataset.naudio[classname]):
-                audio = self.get_audiosignal((classname,idx))
+                audio = self.get_audiosignal((classname, idx))
                 sgram = self.get_feature_vector(audio)
                 fv = self.treat_spec(sgram)
 
@@ -387,7 +426,9 @@ class Feature_vector_DS:
 
                 if self.data_aug != None:
                     for d_aug in self.data_aug:
-                        if np.random.random() < d_aug[1]: # Use randomness to not augment all data
+                        if (
+                            np.random.random() < d_aug[1]
+                        ):  # Use randomness to not augment all data
                             fv = self.get_augmented_fv(d_aug[0], audio)
                             X += list(fv)
                             y += [classname] * len(fv)

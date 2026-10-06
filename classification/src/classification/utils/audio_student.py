@@ -342,6 +342,15 @@ class Feature_vector_DS:
         :param cls_index: Class name and index.
         """
         return self.get_feature_vector(self.get_audiosignal(cls_index))
+    
+    def index_to_fv(self, cls_index: tuple[str, int]) -> tuple[ndarray, int]:
+        """
+        Get i'th item in dataset.
+
+        :param cls_index: Class name and index.
+        """
+        fv = self.get_feature_vector(self.get_audiosignal(cls_index))
+        return self.treat_spec(fv)
 
     def display(self, cls_index: tuple[str, int], show_features=False):
         """

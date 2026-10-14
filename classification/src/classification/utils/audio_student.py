@@ -169,8 +169,7 @@ class AudioUtil:
 
         return (sig, sr)
 
-    def add_bg(
-        audio, dataset, num_sources=1, max_ms=5000, amplitude_limit=0.1
+    def add_bg(audio, dataset, num_sources=1, max_ms=5000, amplitude_limit=0.1
     ) -> tuple[ndarray, int]:
         """
         Adds up sounds uniformly chosen at random to audio.

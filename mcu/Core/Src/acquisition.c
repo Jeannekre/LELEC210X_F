@@ -17,7 +17,6 @@ static volatile uint8_t is_acq_running = 0; // State variable to prevent re-ente
 
 // External variables
 extern ADC_HandleTypeDef hadc1;
-extern TIM_HandleTypeDef htim3;
 
 /*
  * @brief Start the acquisition of audio samples.

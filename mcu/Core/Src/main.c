@@ -20,6 +20,7 @@
 #include "main.h"
 #include "adc.h"
 #include "spi.h"
+#include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -84,13 +85,33 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 		size_t sample_count = 10000;
 		uint16_t samples[sample_count];
-		for (uint32_t i=0; i < sample_count; ++i) {
-			HAL_ADC_Start(&hadc1); // configure and launch single conversion
-			HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY); // wait for conversion
-			samples[i] = (uint16_t) HAL_ADC_GetValue(&hadc1); // read converted value
-			HAL_ADC_Stop(&hadc1); // reset configuration
+
+		// Turn ON the blue user LED (LD2) to indicate acquisition is starting
+		HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+
+		// 1. Démarrer l'ADC et le Timer
+		HAL_ADC_Start(&hadc1);             // Remplacez &hadc1 par votre handle ADC
+		HAL_TIM_Base_Start(&htim3);        // Démarrage du timer 3
+
+		// 2. Boucle d'acquisition (10 000 conversions)
+		for (int i = 0; i < 10000; i++) {
+		    // Attente de la fin de conversion (timeout de 100 ms)
+		    HAL_ADC_PollForConversion(&hadc1, 100);
+
+		    // Lecture et stockage de la valeur mesurée
+		    samples[i] = HAL_ADC_GetValue(&hadc1);
 		}
+
+		// 3. Arrêt du Timer et de l'ADC
+		HAL_TIM_Base_Stop(&htim3);          // Arrêt du timer 3
+		HAL_ADC_Stop(&hadc1);              // Arrêt de l'ADC
+
+
 		print_raw_samples(samples, sample_count);
+
+		// Turn OFF the blue user LED (LD2) once acquisition is finished
+		HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
 
         __HAL_GPIO_EXTI_CLEAR_FLAG(B1_Pin);
         HAL_NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
@@ -110,6 +131,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+
 
   /* USER CODE END 1 */
 
@@ -133,6 +155,7 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI1_Init();
   MX_ADC1_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 #if DEBUGP
 	MX_LPUART1_UART_Init();

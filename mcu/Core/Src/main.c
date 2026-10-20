@@ -19,7 +19,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
+#include "dma.h"
 #include "spi.h"
+#include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -79,27 +81,18 @@ extern ADC_HandleTypeDef hadc1;
  */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	if (GPIO_Pin == B1_Pin) { // User button
-		HAL_NVIC_DisableIRQ(EXTI15_10_IRQn); // Prevent re-entry, only one execution per button press
-
-		size_t sample_count = 10000;
-		uint16_t samples[sample_count];
-		for (uint32_t i=0; i < sample_count; ++i) {
-			HAL_ADC_Start(&hadc1); // configure and launch single conversion
-			HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY); // wait for conversion
-			samples[i] = (uint16_t) HAL_ADC_GetValue(&hadc1); // read converted value
-			HAL_ADC_Stop(&hadc1); // reset configuration
-		}
-		print_raw_samples(samples, sample_count);
-
-        __HAL_GPIO_EXTI_CLEAR_FLAG(B1_Pin);
-        HAL_NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
-        HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-	}
-	else if (GPIO_Pin == RADIO_INT_Pin) { // S2LP radio, will be used in P2d
-		S2LP_IRQ_Handler();
-	}
+if (GPIO_Pin == B1_Pin) { // User button
+if (acquisition_start()) {
+printf("Acquisition not started, already running\r\n");
+} else {
+printf("Acquisition started\r\n");
 }
+}
+else if (GPIO_Pin == RADIO_INT_Pin) { // S2LP radio, will be used in P2d
+S2LP_IRQ_Handler();
+}
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -131,8 +124,10 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_SPI1_Init();
   MX_ADC1_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 #if DEBUGP
 	MX_LPUART1_UART_Init();
@@ -158,7 +153,11 @@ int main(void)
 	while (1)
 	{
     /* USER CODE END WHILE */
-
+		if ( is_processing ) {
+			melvec_compute (( q15_t *) samples_buf_to_process , mel_vectors [0]) ;
+			print_melvectors ( mel_vectors , 1) ;
+			is_processing = 0;
+			}
     /* USER CODE BEGIN 3 */
 	}
 #endif // RUN_CONFIG == EVAL_RADIO

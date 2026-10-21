@@ -45,7 +45,6 @@ mcu/Debug/
 mcu/Release/
 mcu/.settings/
 mcu/*.launch
-mcu/Drivers/
 mcu/.mxproject
 
 # Telecom

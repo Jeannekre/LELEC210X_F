@@ -1,0 +1,511 @@
+From 42327e883e352b672e1d03024948694156b21ff6 Mon Sep 17 00:00:00 2001
+From: brock <nicolas.brusselmans@uclouvain.be>
+Date: Thu, 15 Oct 2026 17:27:35 +0200
+Subject: [PATCH] p2b patch
+
+---
+ mcu/.mxproject              | 32 +++++++++++----------
+ mcu/Core/Inc/dma.h          | 52 +++++++++++++++++++++++++++++++++++
+ mcu/Core/Inc/stm32l4xx_it.h |  1 +
+ mcu/Core/Src/acquisition.c  | 32 ++++++++++++++++++---
+ mcu/Core/Src/adc.c          | 23 +++++++++++++++-
+ mcu/Core/Src/dma.c          | 55 +++++++++++++++++++++++++++++++++++++
+ mcu/Core/Src/main.c         | 40 +++++++++++++--------------
+ mcu/Core/Src/stm32l4xx_it.c | 16 ++++++++++-
+ mcu/ELEC210x.ioc            | 31 +++++++++++++++------
+ 9 files changed, 231 insertions(+), 51 deletions(-)
+ create mode 100644 mcu/Core/Inc/dma.h
+ create mode 100644 mcu/Core/Src/dma.c
+
+diff --git a/mcu/.mxproject b/mcu/.mxproject
+index 06a5d8b..c4bfd38 100644
+--- a/mcu/.mxproject
++++ b/mcu/.mxproject
+@@ -2,33 +2,35 @@
+ LibFiles=Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_adc.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_adc.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_adc_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_def.h;Drivers/STM32L4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_rcc.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_rcc_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_bus.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_rcc.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_crs.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_system.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_utils.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash_ramfunc.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_gpio.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_gpio_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_gpio.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_i2c.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_i2c_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dma.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dma_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_dma.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_dmamux.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_pwr.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_pwr_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_pwr.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_cortex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_cortex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_exti.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_exti.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_usart.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_lpuart.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_spi.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_spi.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_spi_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_tim.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim_ex.h;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_adc.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_adc_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_rcc.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_rcc_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash_ramfunc.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gpio.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_i2c.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_i2c_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_dma.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_dma_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_pwr.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_pwr_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_cortex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_exti.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_uart.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_uart_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_spi.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_spi_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_tim.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_tim_ex.c;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_adc.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_adc.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_adc_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_def.h;Drivers/STM32L4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_rcc.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_rcc_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_bus.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_rcc.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_crs.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_system.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_utils.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash_ramfunc.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_gpio.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_gpio_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_gpio.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_i2c.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_i2c_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dma.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dma_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_dma.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_dmamux.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_pwr.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_pwr_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_pwr.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_cortex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_cortex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_exti.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_exti.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_usart.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_lpuart.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_uart_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_spi.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_spi.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_spi_ex.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_tim.h;Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim_ex.h;Drivers/CMSIS/Device/ST/STM32L4xx/Include/stm32l4a6xx.h;Drivers/CMSIS/Device/ST/STM32L4xx/Include/stm32l4xx.h;Drivers/CMSIS/Device/ST/STM32L4xx/Include/system_stm32l4xx.h;Drivers/CMSIS/Device/ST/STM32L4xx/Include/system_stm32l4xx.h;Drivers/CMSIS/Device/ST/STM32L4xx/Source/Templates/system_stm32l4xx.c;Drivers/CMSIS/Include/mpu_armv8.h;Drivers/CMSIS/Include/cmsis_gcc.h;Drivers/CMSIS/Include/core_armv8mml.h;Drivers/CMSIS/Include/core_sc300.h;Drivers/CMSIS/Include/cmsis_armcc.h;Drivers/CMSIS/Include/cmsis_armclang.h;Drivers/CMSIS/Include/cmsis_iccarm.h;Drivers/CMSIS/Include/core_cm0plus.h;Drivers/CMSIS/Include/core_armv81mml.h;Drivers/CMSIS/Include/mpu_armv7.h;Drivers/CMSIS/Include/tz_context.h;Drivers/CMSIS/Include/core_armv8mbl.h;Drivers/CMSIS/Include/cmsis_version.h;Drivers/CMSIS/Include/core_cm3.h;Drivers/CMSIS/Include/core_cm23.h;Drivers/CMSIS/Include/core_cm0.h;Drivers/CMSIS/Include/core_cm1.h;Drivers/CMSIS/Include/core_cm4.h;Drivers/CMSIS/Include/cmsis_compiler.h;Drivers/CMSIS/Include/core_cm35p.h;Drivers/CMSIS/Include/cmsis_armclang_ltm.h;Drivers/CMSIS/Include/core_cm33.h;Drivers/CMSIS/Include/core_sc000.h;Drivers/CMSIS/Include/core_cm7.h;
+ 
+ [PreviousUsedCubeIDEFiles]
+-SourceFiles=Core/Src/main.c;Core/Src/gpio.c;Core/Src/adc.c;Core/Src/usart.c;Core/Src/spi.c;Core/Src/tim.c;Core/Src/stm32l4xx_it.c;Core/Src/stm32l4xx_hal_msp.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_adc.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_adc_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_rcc.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_rcc_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash_ramfunc.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gpio.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_i2c.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_i2c_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_dma.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_dma_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_pwr.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_pwr_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_cortex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_exti.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_uart.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_uart_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_spi.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_spi_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_tim.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_tim_ex.c;Drivers/CMSIS/Device/ST/STM32L4xx/Source/Templates/system_stm32l4xx.c;Core/Src/system_stm32l4xx.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_adc.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_adc_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_rcc.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_rcc_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash_ramfunc.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gpio.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_i2c.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_i2c_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_dma.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_dma_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_pwr.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_pwr_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_cortex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_exti.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_uart.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_uart_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_spi.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_spi_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_tim.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_tim_ex.c;Drivers/CMSIS/Device/ST/STM32L4xx/Source/Templates/system_stm32l4xx.c;Core/Src/system_stm32l4xx.c;;;
++SourceFiles=Core/Src/main.c;Core/Src/gpio.c;Core/Src/adc.c;Core/Src/dma.c;Core/Src/usart.c;Core/Src/spi.c;Core/Src/tim.c;Core/Src/stm32l4xx_it.c;Core/Src/stm32l4xx_hal_msp.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_adc.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_adc_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_rcc.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_rcc_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash_ramfunc.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gpio.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_i2c.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_i2c_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_dma.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_dma_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_pwr.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_pwr_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_cortex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_exti.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_uart.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_uart_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_spi.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_spi_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_tim.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_tim_ex.c;Drivers/CMSIS/Device/ST/STM32L4xx/Source/Templates/system_stm32l4xx.c;Core/Src/system_stm32l4xx.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_adc.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_adc_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_rcc.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_rcc_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash_ramfunc.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gpio.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_i2c.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_i2c_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_dma.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_dma_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_pwr.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_pwr_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_cortex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_exti.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_uart.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_uart_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_spi.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_spi_ex.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_tim.c;Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_tim_ex.c;Drivers/CMSIS/Device/ST/STM32L4xx/Source/Templates/system_stm32l4xx.c;Core/Src/system_stm32l4xx.c;;;
+ HeaderPath=Drivers/STM32L4xx_HAL_Driver/Inc;Drivers/STM32L4xx_HAL_Driver/Inc/Legacy;Drivers/CMSIS/Device/ST/STM32L4xx/Include;Drivers/CMSIS/Include;Core/Inc;
+ CDefines=USE_HAL_DRIVER;STM32L4A6xx;USE_HAL_DRIVER;USE_HAL_DRIVER;
+ 
+ [PreviousGenFiles]
+ AdvancedFolderStructure=true
+-HeaderFileListSize=8
++HeaderFileListSize=9
+ HeaderFiles#0=../Core/Inc/gpio.h
+ HeaderFiles#1=../Core/Inc/adc.h
+-HeaderFiles#2=../Core/Inc/usart.h
+-HeaderFiles#3=../Core/Inc/spi.h
+-HeaderFiles#4=../Core/Inc/tim.h
+-HeaderFiles#5=../Core/Inc/stm32l4xx_it.h
+-HeaderFiles#6=../Core/Inc/stm32l4xx_hal_conf.h
+-HeaderFiles#7=../Core/Inc/main.h
++HeaderFiles#2=../Core/Inc/dma.h
++HeaderFiles#3=../Core/Inc/usart.h
++HeaderFiles#4=../Core/Inc/spi.h
++HeaderFiles#5=../Core/Inc/tim.h
++HeaderFiles#6=../Core/Inc/stm32l4xx_it.h
++HeaderFiles#7=../Core/Inc/stm32l4xx_hal_conf.h
++HeaderFiles#8=../Core/Inc/main.h
+ HeaderFolderListSize=1
+ HeaderPath#0=../Core/Inc
+ HeaderFiles=;
+-SourceFileListSize=8
++SourceFileListSize=9
+ SourceFiles#0=../Core/Src/gpio.c
+ SourceFiles#1=../Core/Src/adc.c
+-SourceFiles#2=../Core/Src/usart.c
+-SourceFiles#3=../Core/Src/spi.c
+-SourceFiles#4=../Core/Src/tim.c
+-SourceFiles#5=../Core/Src/stm32l4xx_it.c
+-SourceFiles#6=../Core/Src/stm32l4xx_hal_msp.c
+-SourceFiles#7=../Core/Src/main.c
++SourceFiles#2=../Core/Src/dma.c
++SourceFiles#3=../Core/Src/usart.c
++SourceFiles#4=../Core/Src/spi.c
++SourceFiles#5=../Core/Src/tim.c
++SourceFiles#6=../Core/Src/stm32l4xx_it.c
++SourceFiles#7=../Core/Src/stm32l4xx_hal_msp.c
++SourceFiles#8=../Core/Src/main.c
+ SourceFolderListSize=1
+ SourcePath#0=../Core/Src
+ SourceFiles=;
+diff --git a/mcu/Core/Inc/dma.h b/mcu/Core/Inc/dma.h
+new file mode 100644
+index 0000000..cbf3957
+--- /dev/null
++++ b/mcu/Core/Inc/dma.h
+@@ -0,0 +1,52 @@
++/* USER CODE BEGIN Header */
++/**
++  ******************************************************************************
++  * @file    dma.h
++  * @brief   This file contains all the function prototypes for
++  *          the dma.c file
++  ******************************************************************************
++  * @attention
++  *
++  * Copyright (c) 2026 STMicroelectronics.
++  * All rights reserved.
++  *
++  * This software is licensed under terms that can be found in the LICENSE file
++  * in the root directory of this software component.
++  * If no LICENSE file comes with this software, it is provided AS-IS.
++  *
++  ******************************************************************************
++  */
++/* USER CODE END Header */
++/* Define to prevent recursive inclusion -------------------------------------*/
++#ifndef __DMA_H__
++#define __DMA_H__
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++/* Includes ------------------------------------------------------------------*/
++#include "main.h"
++
++/* DMA memory to memory transfer handles -------------------------------------*/
++
++/* USER CODE BEGIN Includes */
++
++/* USER CODE END Includes */
++
++/* USER CODE BEGIN Private defines */
++
++/* USER CODE END Private defines */
++
++void MX_DMA_Init(void);
++
++/* USER CODE BEGIN Prototypes */
++
++/* USER CODE END Prototypes */
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif /* __DMA_H__ */
++
+diff --git a/mcu/Core/Inc/stm32l4xx_it.h b/mcu/Core/Inc/stm32l4xx_it.h
+index 5199f04..f0380a1 100644
+--- a/mcu/Core/Inc/stm32l4xx_it.h
++++ b/mcu/Core/Inc/stm32l4xx_it.h
+@@ -56,6 +56,7 @@ void DebugMon_Handler(void);
+ void PendSV_Handler(void);
+ void SysTick_Handler(void);
+ void EXTI3_IRQHandler(void);
++void DMA1_Channel1_IRQHandler(void);
+ void EXTI15_10_IRQHandler(void);
+ /* USER CODE BEGIN EFP */
+ 
+diff --git a/mcu/Core/Src/acquisition.c b/mcu/Core/Src/acquisition.c
+index 417fb53..b837757 100644
+--- a/mcu/Core/Src/acquisition.c
++++ b/mcu/Core/Src/acquisition.c
+@@ -12,7 +12,8 @@ volatile uint16_t *samples_buf_to_process; // Pointer to the buffer to process
+ volatile uint8_t is_processing = 0; // State variable to signal main loop and prevent timing constraint violation
+ 
+ // Local variables
+-static uint16_t samples_single_buf[10000]; // Single buffer for raw samples
++static volatile uint16_t samples_double_buf[2*SAMPLES_PER_MELVEC]; // Double buffer for raw samples
++static volatile uint16_t *samples_buf[2] = {&samples_double_buf[0], &samples_double_buf[SAMPLES_PER_MELVEC]}; // These are simply pointers to the first and middle element of double buf
+ static volatile uint8_t is_acq_running = 0; // State variable to prevent re-entering acquisition start or stop
+ 
+ // External variables
+@@ -31,7 +32,9 @@ int acquisition_start(void)
+ 	}
+ 	is_acq_running = 1;
+ 
+-	// TODO P2b
++	HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
++	HAL_ADC_Start_DMA(&hadc1, (uint32_t *)samples_double_buf, 2*SAMPLES_PER_MELVEC);
++	HAL_TIM_Base_Start(&htim3);
+ 
+ 	return 0;
+ }
+@@ -47,7 +50,9 @@ int acquisition_stop(void)
+ 		return 1;
+ 	}
+ 
+-	// TODO P2b
++	HAL_TIM_Base_Stop(&htim3);
++	HAL_ADC_Stop_DMA(&hadc1);
++	HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+ 
+ 	is_acq_running = 0;
+ 	return 0;
+@@ -70,7 +75,26 @@ void print_raw_samples(uint16_t *samples, size_t length)
+ #endif // DEBUGP
+ }
+ 
++/*
++ * @brief Callback when one of the two buffers is ready for processing.
++ * @param [in] buf_cplt Buffer ready index (0 or 1).
++ */
++static void process_samples_buf(int buf_cplt)
++{
++	if (is_processing) { // check if the other buffer is still processing
++		DEBUG_PRINT("Error : Samples buffer full (timing constraint violation)\r\n");
++		Error_Handler();
++	}
++	samples_buf_to_process = samples_buf[buf_cplt];
++	is_processing = 1;
++}
++
++void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef *hadc)
++{
++	process_samples_buf(0);
++}
++
+ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
+ {
+-	// TODO P2b
++	process_samples_buf(1);
+ }
+diff --git a/mcu/Core/Src/adc.c b/mcu/Core/Src/adc.c
+index 41b1c1c..769d25c 100644
+--- a/mcu/Core/Src/adc.c
++++ b/mcu/Core/Src/adc.c
+@@ -25,6 +25,7 @@
+ /* USER CODE END 0 */
+ 
+ ADC_HandleTypeDef hadc1;
++DMA_HandleTypeDef hdma_adc1;
+ 
+ /* ADC1 init function */
+ void MX_ADC1_Init(void)
+@@ -55,7 +56,7 @@ void MX_ADC1_Init(void)
+   hadc1.Init.DiscontinuousConvMode = DISABLE;
+   hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIG_T3_TRGO;
+   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+-  hadc1.Init.DMAContinuousRequests = DISABLE;
++  hadc1.Init.DMAContinuousRequests = ENABLE;
+   hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+   hadc1.Init.OversamplingMode = DISABLE;
+   if (HAL_ADC_Init(&hadc1) != HAL_OK)
+@@ -121,6 +122,24 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* adcHandle)
+     GPIO_InitStruct.Pull = GPIO_NOPULL;
+     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+ 
++    /* ADC1 DMA Init */
++    /* ADC1 Init */
++    hdma_adc1.Instance = DMA1_Channel1;
++    hdma_adc1.Init.Request = DMA_REQUEST_0;
++    hdma_adc1.Init.Direction = DMA_PERIPH_TO_MEMORY;
++    hdma_adc1.Init.PeriphInc = DMA_PINC_DISABLE;
++    hdma_adc1.Init.MemInc = DMA_MINC_ENABLE;
++    hdma_adc1.Init.PeriphDataAlignment = DMA_PDATAALIGN_HALFWORD;
++    hdma_adc1.Init.MemDataAlignment = DMA_MDATAALIGN_HALFWORD;
++    hdma_adc1.Init.Mode = DMA_CIRCULAR;
++    hdma_adc1.Init.Priority = DMA_PRIORITY_LOW;
++    if (HAL_DMA_Init(&hdma_adc1) != HAL_OK)
++    {
++      Error_Handler();
++    }
++
++    __HAL_LINKDMA(adcHandle,DMA_Handle,hdma_adc1);
++
+   /* USER CODE BEGIN ADC1_MspInit 1 */
+ 
+   /* USER CODE END ADC1_MspInit 1 */
+@@ -143,6 +162,8 @@ void HAL_ADC_MspDeInit(ADC_HandleTypeDef* adcHandle)
+     */
+     HAL_GPIO_DeInit(GPIOA, GPIO_PIN_0);
+ 
++    /* ADC1 DMA DeInit */
++    HAL_DMA_DeInit(adcHandle->DMA_Handle);
+   /* USER CODE BEGIN ADC1_MspDeInit 1 */
+ 
+   /* USER CODE END ADC1_MspDeInit 1 */
+diff --git a/mcu/Core/Src/dma.c b/mcu/Core/Src/dma.c
+new file mode 100644
+index 0000000..7501d18
+--- /dev/null
++++ b/mcu/Core/Src/dma.c
+@@ -0,0 +1,55 @@
++/* USER CODE BEGIN Header */
++/**
++  ******************************************************************************
++  * @file    dma.c
++  * @brief   This file provides code for the configuration
++  *          of all the requested memory to memory DMA transfers.
++  ******************************************************************************
++  * @attention
++  *
++  * Copyright (c) 2026 STMicroelectronics.
++  * All rights reserved.
++  *
++  * This software is licensed under terms that can be found in the LICENSE file
++  * in the root directory of this software component.
++  * If no LICENSE file comes with this software, it is provided AS-IS.
++  *
++  ******************************************************************************
++  */
++/* USER CODE END Header */
++
++/* Includes ------------------------------------------------------------------*/
++#include "dma.h"
++
++/* USER CODE BEGIN 0 */
++
++/* USER CODE END 0 */
++
++/*----------------------------------------------------------------------------*/
++/* Configure DMA                                                              */
++/*----------------------------------------------------------------------------*/
++
++/* USER CODE BEGIN 1 */
++
++/* USER CODE END 1 */
++
++/**
++  * Enable DMA controller clock
++  */
++void MX_DMA_Init(void)
++{
++
++  /* DMA controller clock enable */
++  __HAL_RCC_DMA1_CLK_ENABLE();
++
++  /* DMA interrupt init */
++  /* DMA1_Channel1_IRQn interrupt configuration */
++  HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
++  HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
++
++}
++
++/* USER CODE BEGIN 2 */
++
++/* USER CODE END 2 */
++
+diff --git a/mcu/Core/Src/main.c b/mcu/Core/Src/main.c
+index 7a8a366..e6558a2 100644
+--- a/mcu/Core/Src/main.c
++++ b/mcu/Core/Src/main.c
+@@ -19,6 +19,7 @@
+ /* Includes ------------------------------------------------------------------*/
+ #include "main.h"
+ #include "adc.h"
++#include "dma.h"
+ #include "spi.h"
+ #include "tim.h"
+ #include "gpio.h"
+@@ -73,9 +74,6 @@ void SystemClock_Config(void);
+ /* Private user code ---------------------------------------------------------*/
+ /* USER CODE BEGIN 0 */
+ 
+-extern ADC_HandleTypeDef hadc1;
+-extern TIM_HandleTypeDef htim3;
+-
+ /*
+  * @brief Manages external interrupts : user button and S2LP radio.
+  * @note This overrides the __weak__ function in stm32l4xx_hal_gpio.c to provide an user implementation.
+@@ -83,25 +81,11 @@ extern TIM_HandleTypeDef htim3;
+ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+ {
+ 	if (GPIO_Pin == B1_Pin) { // User button
+-		HAL_NVIC_DisableIRQ(EXTI15_10_IRQn); // Prevent re-entry, only one execution per button press
+-
+-		HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+-		size_t sample_count = 10000;
+-		uint16_t samples[sample_count];
+-		HAL_ADC_Start(&hadc1);
+-		HAL_TIM_Base_Start(&htim3);
+-		for (uint32_t i=0; i < sample_count; ++i) {
+-			HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY); // wait for conversion
+-			samples[i] = (uint16_t) HAL_ADC_GetValue(&hadc1); // read converted value
++		if (acquisition_start()) {
++			printf("Acquisition not started, already running\r\n");
++		} else {
++			printf("Acquisition started\r\n");
+ 		}
+-		HAL_TIM_Base_Stop(&htim3);
+-		HAL_ADC_Stop(&hadc1);
+-		HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+-		print_raw_samples(samples, sample_count);
+-
+-        __HAL_GPIO_EXTI_CLEAR_FLAG(B1_Pin);
+-        HAL_NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
+-        HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+ 	}
+ 	else if (GPIO_Pin == RADIO_INT_Pin) { // S2LP radio, will be used in P2d
+ 		S2LP_IRQ_Handler();
+@@ -138,6 +122,7 @@ int main(void)
+ 
+   /* Initialize all configured peripherals */
+   MX_GPIO_Init();
++  MX_DMA_Init();
+   MX_SPI1_Init();
+   MX_ADC1_Init();
+   MX_TIM3_Init();
+@@ -165,6 +150,19 @@ int main(void)
+   /* USER CODE BEGIN WHILE */
+ 	while (1)
+ 	{
++		if (is_processing) {
++			melvec_compute((q15_t *)samples_buf_to_process , mel_vectors[cur_melvec]);
++			is_processing = 0;
++			cur_melvec++;
++			if (cur_melvec == N_MELVECS) {
++				cur_melvec = 0;
++				acquisition_stop();
++				print_melvectors(mel_vectors, N_MELVECS);
++#if CONTINUOUS_ACQ
++				acquisition_start();
++#endif // CONTINUOUS_ACQ
++			}
++		}
+     /* USER CODE END WHILE */
+ 
+     /* USER CODE BEGIN 3 */
+diff --git a/mcu/Core/Src/stm32l4xx_it.c b/mcu/Core/Src/stm32l4xx_it.c
+index 163daa9..963c0ec 100644
+--- a/mcu/Core/Src/stm32l4xx_it.c
++++ b/mcu/Core/Src/stm32l4xx_it.c
+@@ -55,7 +55,7 @@
+ /* USER CODE END 0 */
+ 
+ /* External variables --------------------------------------------------------*/
+-
++extern DMA_HandleTypeDef hdma_adc1;
+ /* USER CODE BEGIN EV */
+ 
+ /* USER CODE END EV */
+@@ -212,6 +212,20 @@ void EXTI3_IRQHandler(void)
+   /* USER CODE END EXTI3_IRQn 1 */
+ }
+ 
++/**
++  * @brief This function handles DMA1 channel1 global interrupt.
++  */
++void DMA1_Channel1_IRQHandler(void)
++{
++  /* USER CODE BEGIN DMA1_Channel1_IRQn 0 */
++
++  /* USER CODE END DMA1_Channel1_IRQn 0 */
++  HAL_DMA_IRQHandler(&hdma_adc1);
++  /* USER CODE BEGIN DMA1_Channel1_IRQn 1 */
++
++  /* USER CODE END DMA1_Channel1_IRQn 1 */
++}
++
+ /**
+   * @brief This function handles EXTI line[15:10] interrupts.
+   */
+diff --git a/mcu/ELEC210x.ioc b/mcu/ELEC210x.ioc
+index ab402a1..0bac196 100644
+--- a/mcu/ELEC210x.ioc
++++ b/mcu/ELEC210x.ioc
+@@ -2,7 +2,7 @@
+ ADC1.Channel-0\#ChannelRegularConversion=ADC_CHANNEL_5
+ ADC1.ClockPrescaler=ADC_CLOCK_ASYNC_DIV1
+ ADC1.ContinuousConvMode=DISABLE
+-ADC1.DMAContinuousRequests=DISABLE
++ADC1.DMAContinuousRequests=ENABLE
+ ADC1.ExternalTrigConv=ADC_EXTERNALTRIG_T3_TRGO
+ ADC1.IPParameters=Rank-0\#ChannelRegularConversion,Channel-0\#ChannelRegularConversion,SamplingTime-0\#ChannelRegularConversion,OffsetNumber-0\#ChannelRegularConversion,NbrOfConversionFlag,ClockPrescaler,ExternalTrigConv,DMAContinuousRequests,master,ContinuousConvMode
+ ADC1.NbrOfConversionFlag=1
+@@ -13,6 +13,17 @@ ADC1.master=1
+ CAD.formats=
+ CAD.pinconfig=
+ CAD.provider=
++Dma.ADC1.0.Direction=DMA_PERIPH_TO_MEMORY
++Dma.ADC1.0.Instance=DMA1_Channel1
++Dma.ADC1.0.MemDataAlignment=DMA_MDATAALIGN_HALFWORD
++Dma.ADC1.0.MemInc=DMA_MINC_ENABLE
++Dma.ADC1.0.Mode=DMA_CIRCULAR
++Dma.ADC1.0.PeriphDataAlignment=DMA_PDATAALIGN_HALFWORD
++Dma.ADC1.0.PeriphInc=DMA_PINC_DISABLE
++Dma.ADC1.0.Priority=DMA_PRIORITY_LOW
++Dma.ADC1.0.RequestParameters=Instance,Direction,PeriphInc,MemInc,PeriphDataAlignment,MemDataAlignment,Mode,Priority
++Dma.Request0=ADC1
++Dma.RequestsNb=1
+ File.Version=6
+ GPIO.groupedBy=Group By Peripherals
+ KeepUserPlacement=false
+@@ -34,13 +45,14 @@ LPUART1.WordLength=UART_WORDLENGTH_8B
+ Mcu.CPN=STM32L4A6ZGT6
+ Mcu.Family=STM32L4
+ Mcu.IP0=ADC1
+-Mcu.IP1=LPUART1
+-Mcu.IP2=NVIC
+-Mcu.IP3=RCC
+-Mcu.IP4=SPI1
+-Mcu.IP5=SYS
+-Mcu.IP6=TIM3
+-Mcu.IPNb=7
++Mcu.IP1=DMA
++Mcu.IP2=LPUART1
++Mcu.IP3=NVIC
++Mcu.IP4=RCC
++Mcu.IP5=SPI1
++Mcu.IP6=SYS
++Mcu.IP7=TIM3
++Mcu.IPNb=8
+ Mcu.Name=STM32L4A6ZGTx
+ Mcu.Package=LQFP144
+ Mcu.Pin0=PC13
+@@ -72,6 +84,7 @@ Mcu.UserName=STM32L4A6ZGTx
+ MxCube.Version=6.18.1
+ MxDb.Version=DB.6.0.181
+ NVIC.BusFault_IRQn=true\:0\:0\:false\:false\:true\:true\:false\:false
++NVIC.DMA1_Channel1_IRQn=true\:0\:0\:false\:false\:true\:false\:true\:true
+ NVIC.DebugMonitor_IRQn=true\:0\:0\:false\:false\:true\:true\:false\:false
+ NVIC.EXTI15_10_IRQn=true\:0\:0\:false\:false\:true\:true\:true\:true
+ NVIC.EXTI3_IRQn=true\:0\:0\:false\:false\:true\:true\:true\:true
+@@ -199,7 +212,7 @@ ProjectManager.ToolChainLocation=
+ ProjectManager.UAScriptAfterPath=
+ ProjectManager.UAScriptBeforePath=
+ ProjectManager.UnderRoot=true
+-ProjectManager.functionlistsort=1-SystemClock_Config-RCC-false-HAL-false,2-MX_GPIO_Init-GPIO-false-HAL-true,3-MX_LPUART1_UART_Init-LPUART1-true-HAL-true,4-MX_SPI1_Init-SPI1-false-HAL-true,5-MX_ADC1_Init-ADC1-false-HAL-true
++ProjectManager.functionlistsort=1-SystemClock_Config-RCC-false-HAL-false,2-MX_GPIO_Init-GPIO-false-HAL-true,3-MX_DMA_Init-DMA-false-HAL-true,4-MX_LPUART1_UART_Init-LPUART1-true-HAL-true,5-MX_SPI1_Init-SPI1-false-HAL-true,6-MX_ADC1_Init-ADC1-false-HAL-true,7-MX_TIM3_Init-TIM3-false-HAL-true
+ RCC.ADCCLockSelection=RCC_ADCCLKSOURCE_SYSCLK
+ RCC.ADCFreq_Value=48000000
+ RCC.AHBFreq_Value=48000000
+-- 
+2.34.1
+

@@ -20,6 +20,7 @@
 #include "main.h"
 #include "adc.h"
 #include "spi.h"
+#include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -73,6 +74,8 @@ void SystemClock_Config(void);
 /* USER CODE BEGIN 0 */
 
 extern ADC_HandleTypeDef hadc1;
+extern TIM_HandleTypeDef htim3;
+
 /*
  * @brief Manages external interrupts : user button and S2LP radio.
  * @note This overrides the __weak__ function in stm32l4xx_hal_gpio.c to provide an user implementation.
@@ -82,14 +85,18 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	if (GPIO_Pin == B1_Pin) { // User button
 		HAL_NVIC_DisableIRQ(EXTI15_10_IRQn); // Prevent re-entry, only one execution per button press
 
+		HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
 		size_t sample_count = 10000;
 		uint16_t samples[sample_count];
+		HAL_ADC_Start(&hadc1);
+		HAL_TIM_Base_Start(&htim3);
 		for (uint32_t i=0; i < sample_count; ++i) {
-			HAL_ADC_Start(&hadc1); // configure and launch single conversion
 			HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY); // wait for conversion
 			samples[i] = (uint16_t) HAL_ADC_GetValue(&hadc1); // read converted value
-			HAL_ADC_Stop(&hadc1); // reset configuration
 		}
+		HAL_TIM_Base_Stop(&htim3);
+		HAL_ADC_Stop(&hadc1);
+		HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 		print_raw_samples(samples, sample_count);
 
         __HAL_GPIO_EXTI_CLEAR_FLAG(B1_Pin);
@@ -133,6 +140,7 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI1_Init();
   MX_ADC1_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 #if DEBUGP
 	MX_LPUART1_UART_Init();

@@ -52,6 +52,14 @@ void make_packet(void)
 	// Initially, the whole packet header is set to 0s
 	memset(packet, 0, HEADER_LENGTH);
 	// TODO replace the memset 0 by filling in each header field with the right value
+	packet[0] = 0x00; // r
+	packet[1] = SENSOR_ID; // sensor_id
+	packet[2] = (PAYLOAD_LENGTH >> 8) & 0xFF;
+	packet[3] = PAYLOAD_LENGTH & 0xFF;
+	packet[4] = (packet_serial >> 24) & 0xFF;
+	packet[5] = (packet_serial >> 16) & 0xFF;
+	packet[6] = (packet_serial >> 8) & 0xFF;
+	packet[7] = packet_serial & 0xFF;
 
 	//// 2- Payload ////
 	// BE encoding of each mel coef
@@ -76,13 +84,18 @@ void make_packet(void)
 
     // TODO : Complete the CBC-MAC_AES algorithm
     // using the AES implementation provided in Drivers/AES/aes_ref.h
-    UNUSED(msg_in);
-    UNUSED(msg_len);
-    UNUSED(i);
-    UNUSED(AES_Key);
+    for (size_t i = 0; i < msg_len; i += sizeof(state)) {
+		for (size_t j = 0; j < sizeof(state); j++) {
+			if (i + j < msg_len) {
+				state[j] ^= msg_in[i + j];
+			}
+		}
+		AES128_encrypt(state, AES_Key);
+	}
+	
 
     // Copy the result of CBC-MAC-AES to the tag.
-    for (int j=0; j<16; j++) {
+    for (size_t j = 0; j < sizeof(state); j++) {
         tag[j] = state[j];
     }
 
@@ -110,5 +123,4 @@ void send_packet(void)
 	S2LP_Send(packet, PACKET_LENGTH);
 #endif // ENABLE_RADIO
 }
-
 

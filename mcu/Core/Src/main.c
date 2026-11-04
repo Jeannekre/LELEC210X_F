@@ -159,7 +159,8 @@ int main(void)
 			if (cur_melvec == N_MELVECS) {
 				cur_melvec = 0;
 				acquisition_stop();
-				print_melvectors(mel_vectors, N_MELVECS);
+				make_packet();
+        send_packet();
 #if CONTINUOUS_ACQ
 				acquisition_start();
 #endif // CONTINUOUS_ACQ

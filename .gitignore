@@ -103,4 +103,4 @@ fpga/*/*_sim/
 fpga/incremental_db/
 
 ## ignore STM files
-mcu\Drivers\STM32L4xx_HAL_Driver
+mcu/Drivers/STM32L4xx_HAL_Driver

@@ -22,7 +22,7 @@
 #define N_MELVECS 20
 
 // Radio parameters -- used in Drivers/S2LP
-#define ENABLE_RADIO 0
+#define ENABLE_RADIO 1
 #define BASE_FREQ 868000000 // Carrier frequency, in Hz
 #define DATARATE 50000 // Data rate in 2FSK, in bit/s
 #define FREQDEV DATARATE/4 // Frequency deviation, in Hz
@@ -32,7 +32,7 @@
 #define PERF_COUNT 1
 
 // Enable debug print through UART
-#define DEBUGP 1
+#define DEBUGP 0
 
 // Encapsulate printf to prevent wasting resources in string formatting if not needed
 #if DEBUGP

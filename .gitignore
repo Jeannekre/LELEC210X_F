@@ -46,6 +46,7 @@ mcu/Release/
 mcu/.settings/
 mcu/*.launch
 mcu/Drivers/STM32L4xx_HAL_Driver/
+mcu/Drivers/CMSIS/Device/ST/STM32L4xx/
 
 # Telecom
 

@@ -98,7 +98,7 @@ def main(
 
             if m:
                 # TODO: infer class of fv with your model m
-                guess = "dummy"
+                guess = m.predict(fv)[0]
 
                 logger.info(f"FV classified as : {guess}")
 

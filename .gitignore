@@ -45,6 +45,7 @@ mcu/Debug/
 mcu/Release/
 mcu/.settings/
 mcu/*.launch
+mcu/Drivers/STM32L4xx_HAL_Driver/
 
 # Telecom
 
@@ -102,5 +103,3 @@ fpga/*/timing/
 fpga/*/*_sim/
 fpga/incremental_db/
 
-## ignore STM files
-mcu/Drivers/STM32L4xx_HAL_Driver

@@ -50,8 +50,23 @@ void make_packet(void)
 {
 	//// 1- Header ////
 	// Initially, the whole packet header is set to 0s
-	memset(packet, 0, HEADER_LENGTH);
+	//memset(packet, 0, HEADER_LENGTH);
 	// TODO replace the memset 0 by filling in each header field with the right value
+
+	packet[0] = 0x00;          // Reserved
+	packet[1] = SENSOR_ID;     // Sensor identifier
+
+	// Payload length: 16-bit big-endian
+	packet[2] = (PAYLOAD_LENGTH >> 8) & 0xFF; // recup l'octet de poids fort (Big endian -> l'envoyer avant)
+	packet[3] = PAYLOAD_LENGTH & 0xFF; // recup le poids faible
+
+	// Packet serial: 32-bit big-endian
+	packet[4] = (packet_serial >> 24) & 0xFF;
+	packet[5] = (packet_serial >> 16) & 0xFF;
+	packet[6] = (packet_serial >> 8)  & 0xFF;
+	packet[7] = packet_serial & 0xFF;
+
+
 
 	//// 2- Payload ////
 	// BE encoding of each mel coef
@@ -72,14 +87,25 @@ void make_packet(void)
 	uint32_t statew[4] = {0};
 	// state is a pointer to the start of the buffer
 	uint8_t *state = (uint8_t*) statew;
-    size_t i;
+    //size_t i;
 
     // TODO : Complete the CBC-MAC_AES algorithm
     // using the AES implementation provided in Drivers/AES/aes_ref.h
-    UNUSED(msg_in);
-    UNUSED(msg_len);
-    UNUSED(i);
-    UNUSED(AES_Key);
+
+    for (size_t i = 0; i < msg_len; i += 16) {
+
+        // XOR the current message block with the state
+        for (size_t j = 0; j < 16; j++) {
+
+            if (i + j < msg_len) {
+                state[j] ^= msg_in[i + j];
+            }
+            // Missing bytes are padded with zeros
+        }
+
+        // AES-128 encryption of the 16-byte state
+        AES128_encrypt(state, AES_Key);
+    }
 
     // Copy the result of CBC-MAC-AES to the tag.
     for (int j=0; j<16; j++) {

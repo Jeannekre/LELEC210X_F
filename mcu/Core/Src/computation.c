@@ -37,8 +37,11 @@ void melvec_compute(q15_t *samples, q15_t *melvec)
 
 	// /!\ When multiplying/dividing by a power 2, always prefer shifting left/right instead, ARM instructions to do so are more efficient.
 	// Here we should shift left by 3.
+	start_cycle_count();
 
 	arm_shift_q15(samples, 3, samples, SAMPLES_PER_MELVEC);
+
+	stop_cycle_count("shift");
 
 	// STEP 0.2 : Remove DC Component
 	//            --> Pointwise substract
@@ -52,11 +55,17 @@ void melvec_compute(q15_t *samples, q15_t *melvec)
 		samples[i] -= (1 << 14);
 	}
 
+
+
 	// STEP 1  : Windowing of input samples
 	//           --> Pointwise product
 	//           Complexity: O(N)
 	//           Number of cycles: <TODO>
+	start_cycle_count();
+
 	arm_mult_q15(samples, hamming_window, buf, SAMPLES_PER_MELVEC);
+
+	stop_cycle_count("Hamming");
 
 	// STEP 2  : Discrete Fourier Transform
 	//           --> In-place Fast Fourier Transform (FFT) on a real signal
@@ -65,11 +74,16 @@ void melvec_compute(q15_t *samples, q15_t *melvec)
 	//           Number of cycles: <TODO>
 
 	// Since the FFT is a recursive algorithm, the values are rescaled in the function to ensure that overflow cannot happen.
+
+	start_cycle_count();
+
 	arm_rfft_instance_q15 rfft_inst;
 
 	arm_rfft_init_q15(&rfft_inst, SAMPLES_PER_MELVEC, 0, 1);
 
 	arm_rfft_q15(&rfft_inst, buf, buf_fft);
+
+	stop_cycle_count("FFT");
 
 	// STEP 3  : Compute the complex magnitude of the FFT
 	//           Because the FFT can output a great proportion of very small values,
@@ -80,35 +94,54 @@ void melvec_compute(q15_t *samples, q15_t *melvec)
 	//           Complexity: O(N)
 	//           Number of cycles: <TODO>
 
+	start_cycle_count();
+
 	q15_t vmax;
 	uint32_t pIndex=0;
 
 	arm_absmax_q15(buf_fft, SAMPLES_PER_MELVEC, &vmax, &pIndex);
 
+	stop_cycle_count("absmax");
+
 	// STEP 3.2: Normalize the vector - Dynamic range increase
 	//           Complexity: O(N)
 	//           Number of cycles: <TODO>
+
+	start_cycle_count();
 
 	for (int i=0; i < SAMPLES_PER_MELVEC; i++) // We don't use the second half of the symmetric spectrum
 	{
 		buf[i] = (q15_t) (((q31_t) buf_fft[i] << 15) /((q31_t)vmax));
 	}
 
+	stop_cycle_count("normalization");
+
 	// STEP 3.3: Compute the complex magnitude
 	//           --> The output buffer is now two times smaller because (real|imag) --> (mag)
 	//           Complexity: O(N)
 	//           Number of cycles: <TODO>
 
+
+	start_cycle_count();
+
 	arm_cmplx_mag_q15(buf, buf, SAMPLES_PER_MELVEC/2);
+
+	stop_cycle_count("magnitude");
 
 	// STEP 3.4: Denormalize the vector
 	//           Complexity: O(N)
 	//           Number of cycles: <TODO>
 
+	start_cycle_count();
+
 	for (int i=0; i < SAMPLES_PER_MELVEC/2; i++)
 	{
 		buf[i] = (q15_t) ((((q31_t) buf[i]) * ((q31_t) vmax) ) >> 15 );
 	}
+
+	stop_cycle_count("denormalize");
+
+	start_cycle_count();
 
 	// STEP 4:   Apply MEL transform
 	//           --> Fast Matrix Multiplication
@@ -130,6 +163,9 @@ void melvec_compute(q15_t *samples, q15_t *melvec)
 	arm_mat_init_q15(&melvec_inst, MELVEC_LENGTH, 1, melvec);
 
 	arm_mat_mult_fast_q15(&hz2mel_inst, &fftmag_inst, &melvec_inst, buf_tmp);
+
+	stop_cycle_count("Mel matrix");
+
 }
 
 /*

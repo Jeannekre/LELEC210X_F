@@ -29,7 +29,7 @@
 #define PA_LEVEL 0 // Tx output power, in dBm
 
 // Enable performance measurements
-#define PERF_COUNT 1
+#define PERF_COUNT 0
 
 // Enable debug print through UART
 #define DEBUGP 0

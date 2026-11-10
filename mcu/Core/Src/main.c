@@ -160,7 +160,9 @@ int main(void)
 				cur_melvec = 0;
 				acquisition_stop();
 				make_packet();
-        send_packet();
+				HAL_GPIO_TogglePin(GPOUT_GPIO_Port, GPOUT_Pin); // for oscillo timing measurements
+				send_packet();
+				HAL_GPIO_TogglePin(GPOUT_GPIO_Port, GPOUT_Pin); // for oscillo timing measurements
 #if CONTINUOUS_ACQ
 				acquisition_start();
 #endif // CONTINUOUS_ACQ

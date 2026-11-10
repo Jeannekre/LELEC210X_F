@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
+#include "dma.h"
 #include "spi.h"
 #include "tim.h"
 #include "gpio.h"
@@ -73,7 +74,107 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+/* ===========================================================================
+ * P2a TIMING TEST
+ *   P2A_TIMING_TEST 1 : the blue button runs the P2a test (10 000 samples
+ *                       acquired by polling + raw print, both timed)
+ *   P2A_TIMING_TEST 0 : normal application (acquisition_start(), DMA, ...)
+ *
+ *   USE_TIMER_TRIGGER 0 : software trigger, sampling freq. NOT controlled
+ *   USE_TIMER_TRIGGER 1 : ADC triggered by TIM3
+ * ========================================================================= */
+#define P2A_TIMING_TEST    1
+#define USE_TIMER_TRIGGER  0
+
+#if P2A_TIMING_TEST
 extern ADC_HandleTypeDef hadc1;
+extern TIM_HandleTypeDef htim3;
+
+#define SAMPLE_COUNT 10000
+// static: 20 kB buffer kept out of the (small) stack of the interrupt
+static uint16_t test_samples[SAMPLE_COUNT];
+
+/* Enables the DWT cycle counter (counts CPU clock cycles, works in interrupts) */
+static void cycle_counter_init(void)
+{
+	CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+	DWT->CYCCNT = 0;
+	DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+}
+
+/* Converts CPU cycles to microseconds */
+static uint32_t cycles_to_us(uint32_t cycles)
+{
+	return (uint32_t)(((uint64_t)cycles * 1000000ULL) / SystemCoreClock);
+}
+
+static void p2a_timing_test(void)
+{
+	uint32_t t_start, t_acq_cycles, t_print_cycles;
+
+	cycle_counter_init();
+
+	// Select the ADC trigger source for this test
+#if USE_TIMER_TRIGGER
+	hadc1.Init.ExternalTrigConv     = ADC_EXTERNALTRIG_T3_TRGO;
+	hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+#else
+	hadc1.Init.ExternalTrigConv     = ADC_SOFTWARE_START;
+#endif
+	HAL_ADC_Init(&hadc1);
+
+	// LED ON during acquisition
+	HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+
+	/* ===================== ACQUISITION (timed) ===================== */
+	t_start = DWT->CYCCNT;
+#if USE_TIMER_TRIGGER
+	HAL_ADC_Start(&hadc1);
+	HAL_TIM_Base_Start(&htim3);
+	for (int i = 0; i < SAMPLE_COUNT; i++) {
+		HAL_ADC_PollForConversion(&hadc1, 100);
+		test_samples[i] = HAL_ADC_GetValue(&hadc1);
+	}
+	HAL_TIM_Base_Stop(&htim3);
+	HAL_ADC_Stop(&hadc1);
+#else
+	for (int i = 0; i < SAMPLE_COUNT; i++) {
+		HAL_ADC_Start(&hadc1);                       // software trigger
+		HAL_ADC_PollForConversion(&hadc1, 100);
+		test_samples[i] = HAL_ADC_GetValue(&hadc1);
+	}
+	HAL_ADC_Stop(&hadc1);
+#endif
+	t_acq_cycles = DWT->CYCCNT - t_start;
+	/* =============================================================== */
+
+	// LED OFF once acquisition is finished, BEFORE printing
+	HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+	/* ===================== UART PRINT (timed) ====================== */
+	t_start = DWT->CYCCNT;
+	print_raw_samples(test_samples, SAMPLE_COUNT);
+	t_print_cycles = DWT->CYCCNT - t_start;
+	/* =============================================================== */
+
+	// Results printed AFTER the measurements (printf is slow)
+	uint32_t t_acq_us   = cycles_to_us(t_acq_cycles);
+	uint32_t t_print_us = cycles_to_us(t_print_cycles);
+	uint32_t fs_hz      = (t_acq_us > 0) ?
+			(uint32_t)(((uint64_t)SAMPLE_COUNT * 1000000ULL) / t_acq_us) : 0;
+
+	DEBUG_PRINT("\r\n--- Timing results (%s trigger) ---\r\n",
+			USE_TIMER_TRIGGER ? "TIM3" : "software");
+	DEBUG_PRINT("CPU clock          : %lu Hz\r\n", (unsigned long)SystemCoreClock);
+	DEBUG_PRINT("Acquisition time   : %lu us (%lu cycles)\r\n",
+			(unsigned long)t_acq_us, (unsigned long)t_acq_cycles);
+	DEBUG_PRINT("Time per sample    : %lu ns\r\n",
+			(unsigned long)((uint64_t)t_acq_us * 1000ULL / SAMPLE_COUNT));
+	DEBUG_PRINT("Mean sampling freq : %lu Hz\r\n", (unsigned long)fs_hz);
+	DEBUG_PRINT("UART print time    : %lu ms\r\n", (unsigned long)(t_print_us / 1000));
+}
+#endif // P2A_TIMING_TEST
+
 /*
  * @brief Manages external interrupts : user button and S2LP radio.
  * @note This overrides the __weak__ function in stm32l4xx_hal_gpio.c to provide an user implementation.
@@ -81,41 +182,19 @@ extern ADC_HandleTypeDef hadc1;
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if (GPIO_Pin == B1_Pin) { // User button
-		HAL_NVIC_DisableIRQ(EXTI15_10_IRQn); // Prevent re-entry, only one execution per button press
-
-		size_t sample_count = 10000;
-		uint16_t samples[sample_count];
-
-		// Turn ON the blue user LED (LD2) to indicate acquisition is starting
-		HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
-
-		// 1. Démarrer l'ADC et le Timer
-		HAL_ADC_Start(&hadc1);             // Remplacez &hadc1 par votre handle ADC
-		HAL_TIM_Base_Start(&htim3);        // Démarrage du timer 3
-
-		// 2. Boucle d'acquisition (10 000 conversions)
-		for (int i = 0; i < 10000; i++) {
-		    // Attente de la fin de conversion (timeout de 100 ms)
-		    HAL_ADC_PollForConversion(&hadc1, 100);
-
-		    // Lecture et stockage de la valeur mesurée
-		    samples[i] = HAL_ADC_GetValue(&hadc1);
+#if P2A_TIMING_TEST
+		HAL_NVIC_DisableIRQ(EXTI15_10_IRQn); // only one execution per button press
+		p2a_timing_test();
+		__HAL_GPIO_EXTI_CLEAR_FLAG(B1_Pin);
+		HAL_NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
+		HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+#else
+		if (acquisition_start()) {
+			printf("Acquisition not started, already running\r\n");
+		} else {
+			printf("Acquisition started\r\n");
 		}
-
-		// 3. Arrêt du Timer et de l'ADC
-		HAL_TIM_Base_Stop(&htim3);          // Arrêt du timer 3
-		HAL_ADC_Stop(&hadc1);              // Arrêt de l'ADC
-
-
-		print_raw_samples(samples, sample_count);
-
-		// Turn OFF the blue user LED (LD2) once acquisition is finished
-		HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-
-
-        __HAL_GPIO_EXTI_CLEAR_FLAG(B1_Pin);
-        HAL_NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
-        HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+#endif
 	}
 	else if (GPIO_Pin == RADIO_INT_Pin) { // S2LP radio, will be used in P2d
 		S2LP_IRQ_Handler();
@@ -131,7 +210,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
 
   /* USER CODE END 1 */
 
@@ -153,6 +231,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_SPI1_Init();
   MX_ADC1_Init();
   MX_TIM3_Init();
@@ -180,6 +259,22 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	while (1)
 	{
+		if (is_processing) {
+			HAL_GPIO_TogglePin(GPOUT_GPIO_Port, GPOUT_Pin); // for oscillo timing measurements
+			melvec_compute((q15_t *)samples_buf_to_process , mel_vectors[cur_melvec]);
+			HAL_GPIO_TogglePin(GPOUT_GPIO_Port, GPOUT_Pin); // for oscillo timing measurements
+			is_processing = 0;
+			cur_melvec++;
+			if (cur_melvec == N_MELVECS) {
+				cur_melvec = 0;
+				acquisition_stop();
+				make_packet();
+        send_packet();
+#if CONTINUOUS_ACQ
+				acquisition_start();
+#endif // CONTINUOUS_ACQ
+			}
+		}
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

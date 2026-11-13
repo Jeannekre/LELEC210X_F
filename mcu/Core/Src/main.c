@@ -19,7 +19,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "adc.h"
+#include "dma.h"
 #include "spi.h"
+#include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -72,7 +74,6 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-extern ADC_HandleTypeDef hadc1;
 /*
  * @brief Manages external interrupts : user button and S2LP radio.
  * @note This overrides the __weak__ function in stm32l4xx_hal_gpio.c to provide an user implementation.
@@ -80,21 +81,11 @@ extern ADC_HandleTypeDef hadc1;
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if (GPIO_Pin == B1_Pin) { // User button
-		HAL_NVIC_DisableIRQ(EXTI15_10_IRQn); // Prevent re-entry, only one execution per button press
-
-		size_t sample_count = 10000;
-		uint16_t samples[sample_count];
-		for (uint32_t i=0; i < sample_count; ++i) {
-			HAL_ADC_Start(&hadc1); // configure and launch single conversion
-			HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY); // wait for conversion
-			samples[i] = (uint16_t) HAL_ADC_GetValue(&hadc1); // read converted value
-			HAL_ADC_Stop(&hadc1); // reset configuration
+		if (acquisition_start()) {
+			printf("Acquisition not started, already running\r\n");
+		} else {
+			printf("Acquisition started\r\n");
 		}
-		print_raw_samples(samples, sample_count);
-
-        __HAL_GPIO_EXTI_CLEAR_FLAG(B1_Pin);
-        HAL_NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
-        HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 	}
 	else if (GPIO_Pin == RADIO_INT_Pin) { // S2LP radio, will be used in P2d
 		S2LP_IRQ_Handler();
@@ -131,8 +122,10 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_SPI1_Init();
   MX_ADC1_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
 #if DEBUGP
 	MX_LPUART1_UART_Init();
@@ -157,6 +150,25 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	while (1)
 	{
+		if (is_processing) {
+			HAL_GPIO_TogglePin(GPOUT_GPIO_Port, GPOUT_Pin); // for oscillo timing measurements
+			melvec_compute((q15_t *)samples_buf_to_process , mel_vectors[cur_melvec]);
+			HAL_GPIO_TogglePin(GPOUT_GPIO_Port, GPOUT_Pin); // for oscillo timing measurements
+			is_processing = 0;
+			cur_melvec++;
+			if (cur_melvec == N_MELVECS) {
+				cur_melvec = 0;
+				acquisition_stop();
+				make_packet();
+				HAL_GPIO_TogglePin(GPOUT_GPIO_Port, GPOUT_Pin); // for oscillo timing measurements
+				send_packet();
+				HAL_GPIO_TogglePin(GPOUT_GPIO_Port, GPOUT_Pin); // for oscillo timing measurements
+#if CONTINUOUS_ACQ
+				acquisition_start();
+#endif // CONTINUOUS_ACQ
+			}
+		}
+		__WFI();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -187,7 +199,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_MSI;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
   RCC_OscInitStruct.MSICalibrationValue = 0;
-  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_11;
+  RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_9;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -203,7 +215,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
     Error_Handler();
   }

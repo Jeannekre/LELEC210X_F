@@ -28,7 +28,6 @@ from .utils import logging, parse_common_params
 
 
 def cfo_estimation(y, B, R, Fdev, N):
-    #return 0
     """
     Estimate the carrier frequency offset (CFO) using the Moose algorithm.
 
@@ -44,8 +43,30 @@ def cfo_estimation(y, B, R, Fdev, N):
     -------
     cfo : estimated frequency offset in Hz
     """
+    y = np.asarray(y)
 
-    return 0
+    # L'estimateur a besoin de 2 blocs identiques de taille N symboles
+    if B <= 0 or R <= 0 or N <= 0:
+        raise ValueError("B, R, and N must be positive")
+    if int(R) != R or int(N) != N:
+        raise ValueError("R and N must be integers")
+
+    # Convertir la longueur du bloc en échantillons et vérifier l'entrée.
+    lag = int(N * R)
+    if y.size < 2 * lag:
+        raise ValueError(f"y must contain at least {2 * lag} samples")
+
+    # La corrélation complexe annule la modulation répétée et ne conserve que
+    # la rotation de phase due au décalage de fréquence de la porteuse.
+    first = y[:lag]
+    repeated = y[lag:2 * lag]
+    correlation = np.vdot(first, repeated)
+    if correlation == 0:
+        raise ValueError("The repeated preamble has zero correlation")
+
+    # Convertir le déphasage mesuré sur N périodes symbole en hertz.
+    sample_rate = B * R
+    return np.angle(correlation) * sample_rate / (2 * np.pi * lag)
 
 
 def sto_estimation(y, B, R, Fdev,sync_word):

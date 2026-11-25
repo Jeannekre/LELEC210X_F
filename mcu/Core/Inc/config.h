@@ -14,7 +14,7 @@
 
 // In non-continuous mode, we send a single packet on button press.
 // In continuous mode, we send packets continuously on button press.
-#define CONTINUOUS_ACQ 0
+#define CONTINUOUS_ACQ 1
 
 // Feature vector parameters
 #define SAMPLES_PER_MELVEC 512

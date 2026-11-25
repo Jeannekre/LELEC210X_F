@@ -33,9 +33,10 @@ class tutorial(gr.basic_block):
     docstring for block tutorial
     """
 
-    def __init__(self, offset):
+    def __init__(self, offset, amplitude=1.0):
 
         self.offset = offset
+        self.amplitude = amplitude
 
         gr.basic_block.__init__(
             self,
@@ -67,6 +68,10 @@ class tutorial(gr.basic_block):
         self.logger.info(f"[Tutorial] Offset variable changed to {offset:.2f}")
         self.offset = offset
 
+    def set_amplitude(self, amplitude):
+        self.logger.info(f"[Tutorial] Amplitude variable changed to {amplitude:.2f}")
+        self.amplitude = amplitude
+
     def stop(self):
         self.logger.info(f"[Tutorial] End of flowgraph, stop function reached")
         return True
@@ -77,7 +82,7 @@ class tutorial(gr.basic_block):
         # Never produce more than the output buffer can hold (nor consume more than we produce)
         nitems = min(len(input_items[0]), len(output_items[0]))
 
-        output_items[0][:nitems] = input_items[0][:nitems] + (self.offset + 1j*self.offset)
+        output_items[0][:nitems] = self.amplitude * input_items[0][:nitems] + (self.offset + 1j*self.offset)
 
         self.consume_each(nitems)
 

@@ -4,9 +4,10 @@ category: "[LELEC210X]"
 
 templates:
   imports: import LELEC210X
-  make: LELEC210X.tutorial(${offset})
+  make: LELEC210X.tutorial(${offset}, ${amplitude})
   callbacks:
   - set_offset(${offset})
+  - set_amplitude(${amplitude})
 
 #  Make one 'parameters' list entry for every parameter you want settable from the GUI.
 #     Keys include:
@@ -18,6 +19,11 @@ parameters:
   - id: offset
     label: Offset
     dtype: float
+
+  - id: amplitude
+    label: Amplitude
+    dtype: float
+    default: 1
 
 #  Make one 'inputs' list entry per input and one 'outputs' list entry per output.
 #  Keys include:

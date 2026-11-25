@@ -53,11 +53,23 @@ def demodulate(y, B, R, Fdev):
     # Normalized frequency deviation: Fdev expressed in units of the symbol rate
     f = Fdev / B
 
-    nb_syms = int(len(y)/R)
+    t = np.arange(R) / R  # time vector for one symbol period
 
-    bits_hat = np.zeros(nb_syms)
+    e_s1 = np.exp(1j * 2 * np.pi * f * t)  # complex baseband tone for bit 1
+    e_s0 = np.exp(-1j * 2 * np.pi * f *t)
 
-    return bits_hat
+    r_0 = np.correlate(y, e_s0, mode="valid")[::R] #[::R] for taking the right indexes
+    r_1 = np.correlate(y, e_s1, mode="valid")[::R]
+
+    nb_syms = len(y) // R
+
+    # Compare the correlation energies for the two candidate tones.  The
+    # magnitude removes the unknown carrier phase, which is why this is a
+    # non-coherent detector.
+    e_0 = np.abs(r_0[:nb_syms]) ** 2
+    e_1 = np.abs(r_1[:nb_syms]) ** 2
+
+    return (e_1 > e_0).astype(np.uint8)
 
 
 class demodulation(gr.basic_block):
